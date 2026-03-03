@@ -3,18 +3,14 @@ import { useState, useMemo, useCallback, useEffect, Fragment } from "react";
 const storage = {
   async get(key) {
     try {
-      if (window.storage && window.storage.get) {
-        return await storage.get(key);
-      }
+      if (window.storage && window.storage.get) return await storage.get(key);
       const val = localStorage.getItem(key);
       return val ? { value: val } : null;
     } catch (e) { return null; }
   },
   async set(key, value) {
     try {
-      if (window.storage && window.storage.set) {
-        return await storage.set(key, value);
-      }
+      if (window.storage && window.storage.set) return await storage.set(key, value);
       localStorage.setItem(key, value);
       return { key, value };
     } catch (e) { return null; }
@@ -27,7 +23,7 @@ const storage = {
 const REGIONS = ["NAM", "EUR", "LAM", "APA", "IMEA"];
 
 const REGION_AREAS = {
-  NAM: ["NOA"],
+  NAM: ["USA", "CAN", "MEX"],
   EUR: ["CSE", "EME", "NDC", "NEC", "SWE", "UKI"],
   LAM: ["CAC", "ESA", "WSA"],
   APA: ["GCA", "MEK", "NEA", "OCE", "SEA"],
@@ -35,7 +31,9 @@ const REGION_AREAS = {
 };
 
 const AREA_COUNTRIES = {
-  NOA: ["United States", "Canada", "Mexico"],
+  USA: ["United States"],
+  CAN: ["Canada"],
+  MEX: ["Mexico"],
   CSE: ["Italy", "Greece", "Croatia", "Slovenia", "Serbia", "Cyprus", "Bosnia and Herzegovina", "Macedonia", "Albania", "San Marino", "Czech Republic", "Hungary", "Slovakia"],
   EME: ["Turkey", "Bulgaria", "Georgia", "Egypt", "Israel", "Romania", "Lebanon", "Ukraine"],
   NDC: ["Denmark", "Sweden", "Norway", "Latvia", "Estonia", "Lithuania", "Finland"],
@@ -172,7 +170,9 @@ const DEFAULT_ACTUALS = {
 
 // Area-level actuals (ALL = TMS + Non-TMS, auto-calculated)
 const DEFAULT_AREA_ACTUALS = {
-  NOA: { ftes: 388, scFFE: 69861, mcFFE: 39315, empties: 0, cx: 16, mcOps: 147, finOps: 0, vm: 6, exclusions: 0 },
+  USA: { ftes: 291, scFFE: 49765, mcFFE: 32715, empties: 0, cx: 2, mcOps: 133, finOps: 0, vm: 2, exclusions: 0 },
+  CAN: { ftes: 22, scFFE: 13433, mcFFE: 4400, empties: 0, cx: 3, mcOps: 14, finOps: 0, vm: 1, exclusions: 0 },
+  MEX: { ftes: 76, scFFE: 6664, mcFFE: 2200, empties: 0, cx: 11, mcOps: 0, finOps: 0, vm: 3, exclusions: 0 },
   CSE: { ftes: 67, scFFE: 30309, mcFFE: 2798, empties: 6101.51, cx: 11, mcOps: 0, finOps: 0, vm: 2, exclusions: 0 },
   EME: { ftes: 83, scFFE: 20751, mcFFE: 6305, empties: 5600.08, cx: 22, mcOps: 0, finOps: 0, vm: 2, exclusions: 0 },
   NDC: { ftes: 34, scFFE: 9600, mcFFE: 750, empties: 878.5, cx: 12, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
@@ -198,7 +198,9 @@ const DEFAULT_AREA_ACTUALS = {
 
 // TMS area-level actuals
 const DEFAULT_TMS_AREA_ACTUALS = {
-  NOA: { ftes: 388, scFFE: 69861, mcFFE: 39315, empties: 0, cx: 16, mcOps: 147, finOps: 0, vm: 6, exclusions: 0 },
+  USA: { ftes: 291, scFFE: 49765, mcFFE: 32715, empties: 0, cx: 2, mcOps: 133, finOps: 0, vm: 2, exclusions: 0 },
+  CAN: { ftes: 22, scFFE: 13433, mcFFE: 4400, empties: 0, cx: 3, mcOps: 14, finOps: 0, vm: 1, exclusions: 0 },
+  MEX: { ftes: 76, scFFE: 6664, mcFFE: 2200, empties: 0, cx: 11, mcOps: 0, finOps: 0, vm: 3, exclusions: 0 },
   CSE: { ftes: 46, scFFE: 17296, mcFFE: 1450, empties: 2588, cx: 8, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   EME: { ftes: 28, scFFE: 7797, mcFFE: 705, empties: 2102.5, cx: 10, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   NDC: { ftes: 34, scFFE: 9600, mcFFE: 750, empties: 878.5, cx: 12, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
@@ -224,7 +226,9 @@ const DEFAULT_TMS_AREA_ACTUALS = {
 
 // Non-TMS area-level actuals
 const DEFAULT_NONTMS_AREA_ACTUALS = {
-  NOA: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
+  USA: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
+  CAN: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
+  MEX: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
   CSE: { ftes: 21, scFFE: 13013, mcFFE: 1348, empties: 3513.51, cx: 3, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   EME: { ftes: 55, scFFE: 12954, mcFFE: 5600, empties: 3497.58, cx: 12, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   NDC: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
@@ -407,7 +411,7 @@ const DEFAULT_EMPTIES_SHARE = { NAM: 0, EUR: 0.1404, LAM: 0, APA: 0.207, IMEA: 0
 
 // Default empties config — EUR, APA, IMEA areas include empties at 25% effort
 const DEFAULT_EMPTIES_CONFIG = {
-  NOA: false, CSE: true, EME: true, NDC: true, NEC: true, SWE: true, UKI: true,
+  USA: false, CAN: false, MEX: false, CSE: true, EME: true, NDC: true, NEC: true, SWE: true, UKI: true,
   CAC: false, ESA: false, WSA: false,
   GCA: false, MEK: true, NEA: true, OCE: true, SEA: true,
   EAA: true, IBS: true, PAK: false, SAA: true, SAI: true, UAE: true, WAF: true,
@@ -491,7 +495,7 @@ function PresetBuilder({ areaPresets, setAreaPresets, areaLaneData, setAreaLaneD
   const initAreaPreset = useCallback((area) => {
     const region = AREA_TO_REGION[area];
     const newPresets = {};
-    const laneTypes = area === "NOA" ? ["Fleet", "Road", "Barge", "Rail", "MC"] : getLaneTypesForArea(area);
+    const laneTypes = ["USA", "CAN", "MEX"].includes(area) ? ["Fleet", "Road", "Barge", "Rail", "MC"] : getLaneTypesForArea(area);
     laneTypes.forEach((lane) => {
       const regionKey = `${region}_${lane}`;
       const areaKey = `${area}_${lane}`;
