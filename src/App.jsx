@@ -2085,10 +2085,11 @@ export default function App() {
         if (stored && stored.value) {
           const state = JSON.parse(stored.value);
           if (state.config) {
-            // Merge with defaults, then ensure L3 fields are consistent with totals
+            // Merge with defaults
             const merged = { ...DEFAULT_CONFIG, ...state.config };
-            // If L3 fields were missing in stored config, recalc totals from defaults
-            if (state.config.l3_receiveBooking == null) {
+            // Version-based migration: if config doesn't have our latest version marker,
+            // force L3 defaults and recalc totals (handles stale/corrupt L3 values)
+            if (!state.config._v || state.config._v < 2) {
               merged.l3_receiveBooking = DEFAULT_CONFIG.l3_receiveBooking;
               merged.l3_planTransport = DEFAULT_CONFIG.l3_planTransport;
               merged.l3_manageAmendments = DEFAULT_CONFIG.l3_manageAmendments;
@@ -2097,6 +2098,7 @@ export default function App() {
               merged.l3_manageJobClosure = DEFAULT_CONFIG.l3_manageJobClosure;
               merged.planningMinutesPerOrder = merged.l3_receiveBooking + merged.l3_planTransport + merged.l3_manageAmendments;
               merged.executionMinutesPerOrder = merged.l3_identifyEvents + merged.l3_manageCompletion + merged.l3_manageJobClosure;
+              merged._v = 2;
             }
             setConfig(merged);
           }
@@ -2104,9 +2106,25 @@ export default function App() {
           if (state.areaLaneData) setAreaLaneData(state.areaLaneData);
           if (state.actuals) setActuals({ ...DEFAULT_ACTUALS, ...state.actuals });
           // Merge area actuals with defaults so new areas (USA/CAN/MEX etc) are always present
-          if (state.areaActuals) setAreaActuals({ ...DEFAULT_AREA_ACTUALS, ...state.areaActuals });
+          if (state.areaActuals) {
+            const merged = { ...DEFAULT_AREA_ACTUALS, ...state.areaActuals };
+            // Fix ESA/WSA exclusion split if still using old values
+            if ((merged.ESA?.exclusions || 0) === 154 && (merged.WSA?.exclusions || 0) === 0) {
+              merged.ESA = { ...merged.ESA, exclusions: 100 };
+              merged.WSA = { ...merged.WSA, exclusions: 54 };
+            }
+            setAreaActuals(merged);
+          }
           if (state.tmsAreaActuals) setTmsAreaActuals({ ...DEFAULT_TMS_AREA_ACTUALS, ...state.tmsAreaActuals });
-          if (state.nonTmsAreaActuals) setNonTmsAreaActuals({ ...DEFAULT_NONTMS_AREA_ACTUALS, ...state.nonTmsAreaActuals });
+          if (state.nonTmsAreaActuals) {
+            const merged = { ...DEFAULT_NONTMS_AREA_ACTUALS, ...state.nonTmsAreaActuals };
+            // Fix ESA/WSA exclusion split if still using old values
+            if ((merged.ESA?.exclusions || 0) === 154 && (merged.WSA?.exclusions || 0) === 0) {
+              merged.ESA = { ...merged.ESA, exclusions: 100 };
+              merged.WSA = { ...merged.WSA, exclusions: 54 };
+            }
+            setNonTmsAreaActuals(merged);
+          }
           // FRO/FFE constants
           if (state.emptiesShare) setEmptiesShare({ ...DEFAULT_EMPTIES_SHARE, ...state.emptiesShare });
           if (state.emptiesConfig) setEmptiesConfig({ ...DEFAULT_EMPTIES_CONFIG, ...state.emptiesConfig });
