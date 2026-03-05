@@ -2105,11 +2105,14 @@ export default function App() {
           if (state.areaPresets) setAreaPresets(state.areaPresets);
           if (state.areaLaneData) setAreaLaneData(state.areaLaneData);
           if (state.actuals) setActuals({ ...DEFAULT_ACTUALS, ...state.actuals });
+
+          // Data version for area actuals migrations
+          const needsExclFix = !state._dataV || state._dataV < 2;
+
           // Merge area actuals with defaults so new areas (USA/CAN/MEX etc) are always present
           if (state.areaActuals) {
             const merged = { ...DEFAULT_AREA_ACTUALS, ...state.areaActuals };
-            // Fix ESA/WSA exclusion split if still using old values
-            if ((merged.ESA?.exclusions || 0) === 154 && (merged.WSA?.exclusions || 0) === 0) {
+            if (needsExclFix) {
               merged.ESA = { ...merged.ESA, exclusions: 100 };
               merged.WSA = { ...merged.WSA, exclusions: 54 };
             }
@@ -2118,8 +2121,7 @@ export default function App() {
           if (state.tmsAreaActuals) setTmsAreaActuals({ ...DEFAULT_TMS_AREA_ACTUALS, ...state.tmsAreaActuals });
           if (state.nonTmsAreaActuals) {
             const merged = { ...DEFAULT_NONTMS_AREA_ACTUALS, ...state.nonTmsAreaActuals };
-            // Fix ESA/WSA exclusion split if still using old values
-            if ((merged.ESA?.exclusions || 0) === 154 && (merged.WSA?.exclusions || 0) === 0) {
+            if (needsExclFix) {
               merged.ESA = { ...merged.ESA, exclusions: 100 };
               merged.WSA = { ...merged.WSA, exclusions: 54 };
             }
@@ -2143,7 +2145,7 @@ export default function App() {
       try {
         await storage.set(
           "productivity-model-state",
-          JSON.stringify({ config, areaPresets, areaLaneData, actuals, areaActuals, tmsAreaActuals, nonTmsAreaActuals, emptiesConfig, emptiesShare, metadata })
+          JSON.stringify({ config, areaPresets, areaLaneData, actuals, areaActuals, tmsAreaActuals, nonTmsAreaActuals, emptiesConfig, emptiesShare, metadata, _dataV: 2 })
         );
       } catch (e) {
         // Storage unavailable
