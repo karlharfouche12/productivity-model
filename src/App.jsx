@@ -85,6 +85,14 @@ const DEFAULT_CONFIG = {
   planningMinutesPerOrder: 6,
   executionMinutesPerOrder: 7,
   minutesPerAutomatedOrder: 1,
+  // L3 Planning breakdown (sums to planningMinutesPerOrder)
+  l3_receiveBooking: 1,
+  l3_planTransport: 2,
+  l3_manageAmendments: 3,
+  // L3 Execution breakdown (sums to executionMinutesPerOrder)
+  l3_identifyEvents: 3,
+  l3_manageCompletion: 1,
+  l3_manageJobClosure: 3,
 };
 
 // Regional presets (from the Excel)
@@ -157,6 +165,195 @@ const REGIONAL_LANE_DATA = {
   IMEA_Road: { orderShare: 0.4350, nonMcShare: 0.7914, automation: 0.588, tmsAdoption: 0.5 },
   IMEA_Rail: { orderShare: 0.0647, nonMcShare: 0.1176, automation: 0.376, tmsAdoption: 0.5 },
   IMEA_MC: { orderShare: 0.4503, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+};
+
+// ─── AREA-LEVEL LANE DATA ──────────────────────────────────────────────────
+// Transport mode splits from area-level pivot data (Number_of_Work_Orders)
+// MC% from FRO-FFE tab: MC Estimated FFE / (Adjusted FFE + MC Estimated FFE)
+// orderShare = effective share (SC split × non-MC portion for SC lanes, or MC% for MC lane)
+// nonMcShare = SC-only share (before MC adjustment), null for MC lanes
+// Automation rates: inherited from regional data (Oct 2025 column)
+// TMS adoption: inherited from regional data
+
+const AREA_LANE_DATA = {
+  // ── USA (NOA) ── MC: 39.79%, non-MC: 60.21%  |  Fleet: 25% (keep as is)
+  // SC split: Fleet 25%, Barge 0.96%, Rail 50.24%, Road 23.81% (Road = 48.81% - 25% fleet)
+  USA_Fleet: { orderShare: 0.25 * 0.6021, nonMcShare: 0.25, automation: 0, tmsAdoption: 1.0 },
+  USA_Road:  { orderShare: 0.2381 * 0.6021, nonMcShare: 0.2381, automation: 0.668, tmsAdoption: 1.0 },
+  USA_Barge: { orderShare: 0.0096 * 0.6021, nonMcShare: 0.0096, automation: 0.456, tmsAdoption: 1.0 },
+  USA_Rail:  { orderShare: 0.5024 * 0.6021, nonMcShare: 0.5024, automation: 0.725, tmsAdoption: 1.0 },
+  USA_MC:    { orderShare: 0.3979, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── CAN (NOA) ── MC: 25.52%, non-MC: 74.48%  |  NO Fleet
+  // SC split: Rail 85.26%, Road 14.74%
+  CAN_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 1.0 },
+  CAN_Road:  { orderShare: 0.1474 * 0.7448, nonMcShare: 0.1474, automation: 0.668, tmsAdoption: 1.0 },
+  CAN_Barge: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 1.0 },
+  CAN_Rail:  { orderShare: 0.8526 * 0.7448, nonMcShare: 0.8526, automation: 0.725, tmsAdoption: 1.0 },
+  CAN_MC:    { orderShare: 0.2552, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── MEX (NOA) ── MC: 24.93%, non-MC: 75.07%  |  NO Fleet
+  // SC split: Rail 35.53%, Road 64.47%
+  MEX_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 1.0 },
+  MEX_Road:  { orderShare: 0.6447 * 0.7507, nonMcShare: 0.6447, automation: 0.668, tmsAdoption: 1.0 },
+  MEX_Rail:  { orderShare: 0.3553 * 0.7507, nonMcShare: 0.3553, automation: 0.725, tmsAdoption: 1.0 },
+  MEX_MC:    { orderShare: 0.2493, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── CSE (EUR) ── MC: 8.47%, non-MC: 91.53%  |  NO Fleet
+  // SC split: Rail 28.85%, Road 71.15%
+  CSE_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  CSE_Road:  { orderShare: 0.7115 * 0.9153, nonMcShare: 0.7115, automation: 0.493, tmsAdoption: 0.5 },
+  CSE_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.825, tmsAdoption: 0.5 },
+  CSE_Rail:  { orderShare: 0.2885 * 0.9153, nonMcShare: 0.2885, automation: 0.757, tmsAdoption: 0.5 },
+  CSE_MC:    { orderShare: 0.0847, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── EME (EUR) ── MC: 23.66%, non-MC: 76.34%  |  Fleet: 5% (taken from Road)
+  // SC split: Fleet 5%, Rail 8.30%, Road 86.70% (91.70% - 5%)
+  EME_Fleet: { orderShare: 0.05 * 0.7634, nonMcShare: 0.05, automation: 0, tmsAdoption: 0.5 },
+  EME_Road:  { orderShare: 0.8670 * 0.7634, nonMcShare: 0.8670, automation: 0.493, tmsAdoption: 0.5 },
+  EME_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.825, tmsAdoption: 0.5 },
+  EME_Rail:  { orderShare: 0.0830 * 0.7634, nonMcShare: 0.0830, automation: 0.757, tmsAdoption: 0.5 },
+  EME_MC:    { orderShare: 0.2366, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── NDC (EUR) ── MC: 7.66%, non-MC: 92.34%  |  NO Fleet
+  // SC split: Rail 7.90%, Road 92.10%
+  NDC_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  NDC_Road:  { orderShare: 0.9210 * 0.9234, nonMcShare: 0.9210, automation: 0.493, tmsAdoption: 0.5 },
+  NDC_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.825, tmsAdoption: 0.5 },
+  NDC_Rail:  { orderShare: 0.0790 * 0.9234, nonMcShare: 0.0790, automation: 0.757, tmsAdoption: 0.5 },
+  NDC_MC:    { orderShare: 0.0766, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── NEC (EUR) ── MC: 36.78%, non-MC: 63.22%  |  NO Fleet
+  // SC split: Barge 12.22%, Rail 36.77%, Road 51.01%
+  NEC_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  NEC_Road:  { orderShare: 0.5101 * 0.6322, nonMcShare: 0.5101, automation: 0.493, tmsAdoption: 0.5 },
+  NEC_Barge: { orderShare: 0.1222 * 0.6322, nonMcShare: 0.1222, automation: 0.825, tmsAdoption: 0.5 },
+  NEC_Rail:  { orderShare: 0.3677 * 0.6322, nonMcShare: 0.3677, automation: 0.757, tmsAdoption: 0.5 },
+  NEC_MC:    { orderShare: 0.3678, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── SWE (EUR) ── MC: 37.01%, non-MC: 62.99%  |  NO Fleet
+  // SC split: Rail 21.17%, Road 78.83%
+  SWE_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  SWE_Road:  { orderShare: 0.7883 * 0.6299, nonMcShare: 0.7883, automation: 0.493, tmsAdoption: 0.5 },
+  SWE_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.825, tmsAdoption: 0.5 },
+  SWE_Rail:  { orderShare: 0.2117 * 0.6299, nonMcShare: 0.2117, automation: 0.757, tmsAdoption: 0.5 },
+  SWE_MC:    { orderShare: 0.3701, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── UKI (EUR) ── MC: 11.14%, non-MC: 88.86%  |  Fleet: 10% (keep as is)
+  // SC split: Road 50%, Rail 40%, Fleet 10%
+  UKI_Fleet: { orderShare: 0.10 * 0.8886, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.5 },
+  UKI_Road:  { orderShare: 0.50 * 0.8886, nonMcShare: 0.50, automation: 0.493, tmsAdoption: 0.5 },
+  UKI_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.825, tmsAdoption: 0.5 },
+  UKI_Rail:  { orderShare: 0.40 * 0.8886, nonMcShare: 0.40, automation: 0.757, tmsAdoption: 0.5 },
+  UKI_MC:    { orderShare: 0.1114, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── CAC (LAM) ── MC: 19.41%, non-MC: 80.59%  |  NO Fleet
+  // SC split: Road 100%
+  CAC_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.3 },
+  CAC_Road:  { orderShare: 1.00 * 0.8059, nonMcShare: 1.00, automation: 0.451, tmsAdoption: 0.3 },
+  CAC_Barge: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.3 },
+  CAC_MC:    { orderShare: 0.1941, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── ESA (LAM) ── MC: 20.28%, non-MC: 79.72%  |  Fleet: 10% (taken from Road)
+  // SC split: Fleet 10%, Road 90% (100% - 10%)
+  ESA_Fleet: { orderShare: 0.10 * 0.7972, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.3 },
+  ESA_Road:  { orderShare: 0.90 * 0.7972, nonMcShare: 0.90, automation: 0.451, tmsAdoption: 0.3 },
+  ESA_Barge: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.3 },
+  ESA_MC:    { orderShare: 0.2028, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── WSA (LAM) ── MC: 14.65%, non-MC: 85.35%  |  Fleet: 15% (taken from Road)
+  // SC split: Fleet 15%, Road 85% (100% - 15%)
+  WSA_Fleet: { orderShare: 0.15 * 0.8535, nonMcShare: 0.15, automation: 0, tmsAdoption: 0.3 },
+  WSA_Road:  { orderShare: 0.85 * 0.8535, nonMcShare: 0.85, automation: 0.451, tmsAdoption: 0.3 },
+  WSA_Barge: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.3 },
+  WSA_MC:    { orderShare: 0.1465, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── GCA (APA) ── MC: 80.25%, non-MC: 19.75%  |  NO Fleet
+  // SC split: Road 80%, Rail 10%, Barge 10%
+  GCA_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.15 },
+  GCA_Road:  { orderShare: 0.80 * 0.1975, nonMcShare: 0.80, automation: 0.515, tmsAdoption: 0.15 },
+  GCA_Barge: { orderShare: 0.10 * 0.1975, nonMcShare: 0.10, automation: 0.803, tmsAdoption: 0.15 },
+  GCA_Rail:  { orderShare: 0.10 * 0.1975, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.15 },
+  GCA_MC:    { orderShare: 0.8025, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── MEK (APA) ── MC: 49.04%, non-MC: 50.96%  |  Fleet: 10% (taken from Road)
+  // SC split: Fleet 10%, Barge 59.95%, Rail 15.47%, Road 14.59% (24.59% - 10%)
+  MEK_Fleet: { orderShare: 0.10 * 0.5096, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.15 },
+  MEK_Road:  { orderShare: 0.1459 * 0.5096, nonMcShare: 0.1459, automation: 0.515, tmsAdoption: 0.15 },
+  MEK_Barge: { orderShare: 0.5995 * 0.5096, nonMcShare: 0.5995, automation: 0.803, tmsAdoption: 0.15 },
+  MEK_Rail:  { orderShare: 0.1547 * 0.5096, nonMcShare: 0.1547, automation: 0, tmsAdoption: 0.15 },
+  MEK_MC:    { orderShare: 0.4904, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── NEA (APA) ── MC: 51.88%, non-MC: 48.12%  |  NO Fleet
+  // SC split: Road 90%, Rail 10%
+  NEA_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.15 },
+  NEA_Road:  { orderShare: 0.90 * 0.4812, nonMcShare: 0.90, automation: 0.515, tmsAdoption: 0.15 },
+  NEA_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.803, tmsAdoption: 0.15 },
+  NEA_Rail:  { orderShare: 0.10 * 0.4812, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.15 },
+  NEA_MC:    { orderShare: 0.5188, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── OCE (APA) ── MC: 10.42%, non-MC: 89.58%  |  NO Fleet
+  // SC split: Road 80%, Rail 20%
+  OCE_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.15 },
+  OCE_Road:  { orderShare: 0.80 * 0.8958, nonMcShare: 0.80, automation: 0.515, tmsAdoption: 0.15 },
+  OCE_Barge: { orderShare: 0, nonMcShare: 0, automation: 0.803, tmsAdoption: 0.15 },
+  OCE_Rail:  { orderShare: 0.20 * 0.8958, nonMcShare: 0.20, automation: 0, tmsAdoption: 0.15 },
+  OCE_MC:    { orderShare: 0.1042, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── SEA (APA) ── MC: 58.58%, non-MC: 41.42%  |  Fleet: 10% (taken from Road)
+  // SC split: Fleet 10%, Road 70% (80% - 10%), Rail 10%, Barge 10%
+  SEA_Fleet: { orderShare: 0.10 * 0.4142, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.15 },
+  SEA_Road:  { orderShare: 0.70 * 0.4142, nonMcShare: 0.70, automation: 0.515, tmsAdoption: 0.15 },
+  SEA_Barge: { orderShare: 0.10 * 0.4142, nonMcShare: 0.10, automation: 0.803, tmsAdoption: 0.15 },
+  SEA_Rail:  { orderShare: 0.10 * 0.4142, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.15 },
+  SEA_MC:    { orderShare: 0.5858, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── EAA (IMEA) ── MC: 36.57%, non-MC: 63.43%  |  NO Fleet
+  // SC split: Rail 56.84%, Road 43.16%
+  EAA_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  EAA_Road:  { orderShare: 0.4316 * 0.6343, nonMcShare: 0.4316, automation: 0.588, tmsAdoption: 0.5 },
+  EAA_Rail:  { orderShare: 0.5684 * 0.6343, nonMcShare: 0.5684, automation: 0.376, tmsAdoption: 0.5 },
+  EAA_MC:    { orderShare: 0.3657, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── IBS (IMEA) ── MC: 3.14%, non-MC: 96.86%  |  Fleet: 5% (taken from Road)
+  // SC split: Fleet 5%, Road 45% (50% - 5%), Rail 40%
+  IBS_Fleet: { orderShare: 0.05 * 0.9686, nonMcShare: 0.05, automation: 0, tmsAdoption: 0.5 },
+  IBS_Road:  { orderShare: 0.45 * 0.9686, nonMcShare: 0.45, automation: 0.588, tmsAdoption: 0.5 },
+  IBS_Rail:  { orderShare: 0.40 * 0.9686, nonMcShare: 0.40, automation: 0.376, tmsAdoption: 0.5 },
+  IBS_MC:    { orderShare: 0.0314, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── PAK (IMEA) ── MC: 90.62%, non-MC: 9.38%  |  NO Fleet
+  // SC split: Road 100%
+  PAK_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  PAK_Road:  { orderShare: 1.00 * 0.0938, nonMcShare: 1.00, automation: 0.588, tmsAdoption: 0.5 },
+  PAK_MC:    { orderShare: 0.9062, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── SAA (IMEA) ── MC: 33.06%, non-MC: 66.94%  |  Fleet: 10% (taken from Road)
+  // SC split: Fleet 10%, Road 90% (100% - 10%)
+  SAA_Fleet: { orderShare: 0.10 * 0.6694, nonMcShare: 0.10, automation: 0, tmsAdoption: 0.5 },
+  SAA_Road:  { orderShare: 0.90 * 0.6694, nonMcShare: 0.90, automation: 0.588, tmsAdoption: 0.5 },
+  SAA_Rail:  { orderShare: 0, nonMcShare: 0, automation: 0.376, tmsAdoption: 0.5 },
+  SAA_MC:    { orderShare: 0.3306, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── SAI (IMEA) ── MC: 17.61%, non-MC: 82.39%  |  Fleet: 5% (taken from Road)
+  // SC split: Fleet 5%, Rail 23.95%, Road 71.05% (76.05% - 5%)
+  SAI_Fleet: { orderShare: 0.05 * 0.8239, nonMcShare: 0.05, automation: 0, tmsAdoption: 0.5 },
+  SAI_Road:  { orderShare: 0.7105 * 0.8239, nonMcShare: 0.7105, automation: 0.588, tmsAdoption: 0.5 },
+  SAI_Rail:  { orderShare: 0.2395 * 0.8239, nonMcShare: 0.2395, automation: 0.376, tmsAdoption: 0.5 },
+  SAI_MC:    { orderShare: 0.1761, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── UAE (IMEA) ── MC: 12.18%, non-MC: 87.82%  |  Fleet: 5% (taken from Road)
+  // SC split: Fleet 5%, Road 95% (100% - 5%)
+  UAE_Fleet: { orderShare: 0.05 * 0.8782, nonMcShare: 0.05, automation: 0, tmsAdoption: 0.5 },
+  UAE_Road:  { orderShare: 0.95 * 0.8782, nonMcShare: 0.95, automation: 0.588, tmsAdoption: 0.5 },
+  UAE_MC:    { orderShare: 0.1218, nonMcShare: null, automation: 0, tmsAdoption: 0 },
+
+  // ── WAF (IMEA) ── MC: 47.83%, non-MC: 52.17%  |  NO Fleet
+  // SC split: Road 100%
+  WAF_Fleet: { orderShare: 0, nonMcShare: 0, automation: 0, tmsAdoption: 0.5 },
+  WAF_Road:  { orderShare: 1.00 * 0.5217, nonMcShare: 1.00, automation: 0.588, tmsAdoption: 0.5 },
+  WAF_Rail:  { orderShare: 0, nonMcShare: 0, automation: 0.376, tmsAdoption: 0.5 },
+  WAF_MC:    { orderShare: 0.4783, nonMcShare: null, automation: 0, tmsAdoption: 0 },
 };
 
 // Actuals data from Excel
@@ -508,10 +705,14 @@ function PresetBuilder({ areaPresets, setAreaPresets, areaLaneData, setAreaLaneD
 
   const getLaneTypesForArea = (area) => {
     const region = AREA_TO_REGION[area];
+    // Check area-specific lane data first, then fall back to regional
+    const areaLanes = Object.keys(AREA_LANE_DATA)
+      .filter((k) => k.startsWith(area + "_"))
+      .map((k) => k.split("_")[1]);
     const regionLanes = Object.keys(REGIONAL_PRESETS)
       .filter((k) => k.startsWith(region + "_"))
       .map((k) => k.split("_")[1]);
-    return [...new Set(regionLanes)];
+    return [...new Set([...areaLanes, ...regionLanes])];
   };
 
   const handleMultChange = (area, lane, mult, value) => {
@@ -670,7 +871,7 @@ function PresetBuilder({ areaPresets, setAreaPresets, areaLaneData, setAreaLaneD
                                 const key = `${area}_${lane}`;
                                 const regionKey = `${region}_${lane}`;
                                 const preset = areaPresets[key] || REGIONAL_PRESETS[regionKey] || {};
-                                const laneData = areaLaneData[key] || REGIONAL_LANE_DATA[regionKey] || {};
+                                const laneData = areaLaneData[key] || AREA_LANE_DATA[key] || REGIONAL_LANE_DATA[regionKey] || {};
                                 const effortIdx = calcEffortIndex(preset);
 
                                 return (
@@ -767,7 +968,7 @@ function TargetCalculator({ config, setConfig, areaPresets, areaLaneData }) {
           const areaKey = `${area}_${lane}`;
           const regionKey = `${region}_${lane}`;
           aPresets[areaKey] = areaPresets[areaKey] || REGIONAL_PRESETS[regionKey];
-          aLaneData[areaKey] = areaLaneData[areaKey] || REGIONAL_LANE_DATA[regionKey];
+          aLaneData[areaKey] = areaLaneData[areaKey] || AREA_LANE_DATA[areaKey] || REGIONAL_LANE_DATA[regionKey];
         });
         
         if (Object.values(aPresets).some(p => p)) {
@@ -787,8 +988,6 @@ function TargetCalculator({ config, setConfig, areaPresets, areaLaneData }) {
           {[
             ["workingDaysPerYear", "Working Days / Year"],
             ["availableMinutesPerDay", "Net Minutes / Day"],
-            ["planningMinutesPerOrder", "Planning Mins / Order"],
-            ["executionMinutesPerOrder", "Execution Mins / Order"],
             ["minutesPerAutomatedOrder", "Automated Mins / Order"],
           ].map(([key, label]) => (
             <div key={key} className="flex items-center justify-between">
@@ -802,6 +1001,84 @@ function TargetCalculator({ config, setConfig, areaPresets, areaLaneData }) {
             </div>
           ))}
         </div>
+
+        {/* L3 Breakdown */}
+        <div className="mt-4 pt-4 border-t border-slate-700/30">
+          <div className="grid grid-cols-2 gap-6">
+            {/* Planning L3s */}
+            <div>
+              <div className="text-xs text-teal-400 font-semibold uppercase tracking-wider mb-3">Planning Steps</div>
+              {[
+                ["l3_receiveBooking", "Receive & Prepare Booking", "Blocked orders, missing haulage info"],
+                ["l3_planTransport", "Plan Transport & Vendor Order", "Vendor availability, optimisation, cost validation"],
+                ["l3_manageAmendments", "Manage Amendments & Cancellations", "Futile trips, route changes, re-optimisation"],
+              ].map(([key, label, tooltip]) => (
+                <div key={key} className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="text-sm text-slate-300">{label}</span>
+                    <div className="text-xs text-slate-600 mt-0.5">{tooltip}</div>
+                  </div>
+                  <NumberInput
+                    value={config[key]}
+                    onChange={(v) => {
+                      setConfig((p) => {
+                        const updated = { ...p, [key]: v };
+                        updated.planningMinutesPerOrder = updated.l3_receiveBooking + updated.l3_planTransport + updated.l3_manageAmendments;
+                        return updated;
+                      });
+                    }}
+                    step={0.5}
+                    min={0}
+                    className="w-16"
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/30">
+                <span className="text-sm text-slate-400 font-medium">Planning Mins / Order</span>
+                <span className="font-mono text-teal-300 font-semibold text-sm w-16 text-center">
+                  {config.planningMinutesPerOrder}
+                </span>
+              </div>
+            </div>
+
+            {/* Execution L3s */}
+            <div>
+              <div className="text-xs text-teal-400 font-semibold uppercase tracking-wider mb-3">Execution Steps</div>
+              {[
+                ["l3_identifyEvents", "Identify & Manage Events", "Vendor failures, delays, re-planning"],
+                ["l3_manageCompletion", "Manage Execution Completion", "Non-executed orders, missing milestones"],
+                ["l3_manageJobClosure", "Manage Job Closure (incl. costs)", "Additional charges, disputes (<5% ratio)"],
+              ].map(([key, label, tooltip]) => (
+                <div key={key} className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="text-sm text-slate-300">{label}</span>
+                    <div className="text-xs text-slate-600 mt-0.5">{tooltip}</div>
+                  </div>
+                  <NumberInput
+                    value={config[key]}
+                    onChange={(v) => {
+                      setConfig((p) => {
+                        const updated = { ...p, [key]: v };
+                        updated.executionMinutesPerOrder = updated.l3_identifyEvents + updated.l3_manageCompletion + updated.l3_manageJobClosure;
+                        return updated;
+                      });
+                    }}
+                    step={0.5}
+                    min={0}
+                    className="w-16"
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/30">
+                <span className="text-sm text-slate-400 font-medium">Execution Mins / Order</span>
+                <span className="font-mono text-teal-300 font-semibold text-sm w-16 text-center">
+                  {config.executionMinutesPerOrder}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-3 pt-3 border-t border-slate-700/30">
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-400">Base Minutes / Order (Plan + Execute)</span>
@@ -1138,7 +1415,7 @@ function GapAnalysis({ config, actuals, areaActuals, tmsAreaActuals, nonTmsAreaA
           const areaKey = `${area}_${lane}`;
           const regionKey = `${region}_${lane}`;
           aPresets[areaKey] = areaPresets[areaKey] || REGIONAL_PRESETS[regionKey];
-          aLaneData[areaKey] = areaLaneData[areaKey] || REGIONAL_LANE_DATA[regionKey];
+          aLaneData[areaKey] = areaLaneData[areaKey] || AREA_LANE_DATA[areaKey] || REGIONAL_LANE_DATA[regionKey];
         });
 
         const hasCustom = Object.keys(areaPresets).some((k) => k.startsWith(area + "_"));
@@ -1374,7 +1651,7 @@ function WorkforcePlanning({ config, actuals, areaActuals, areaPresets, areaLane
           const areaKey = `${area}_${lane}`;
           const regionKey = `${region}_${lane}`;
           aPresets[areaKey] = areaPresets[areaKey] || REGIONAL_PRESETS[regionKey];
-          aLaneData[areaKey] = areaLaneData[areaKey] || REGIONAL_LANE_DATA[regionKey];
+          aLaneData[areaKey] = areaLaneData[areaKey] || AREA_LANE_DATA[areaKey] || REGIONAL_LANE_DATA[regionKey];
         });
 
         const target = calcTarget(config, aPresets, aLaneData, getRegionalFroFfe(region, DEFAULT_EMPTIES_CONFIG[area] || false), DEFAULT_ACTUALS[region]?.volShare || 0, DEFAULT_EMPTIES_CONFIG[area] || false, DEFAULT_EMPTIES_SHARE[region]);
@@ -1570,7 +1847,7 @@ function FTEProgressTracker({ areaActuals, emptiesConfig, config, areaPresets, a
           const areaKey = area + "_" + lane;
           const regionKey = region + "_" + lane;
           aPresets[areaKey] = areaPresets[areaKey] || REGIONAL_PRESETS[regionKey];
-          aLaneData[areaKey] = areaLaneData[areaKey] || REGIONAL_LANE_DATA[regionKey];
+          aLaneData[areaKey] = areaLaneData[areaKey] || AREA_LANE_DATA[areaKey] || REGIONAL_LANE_DATA[regionKey];
         });
         const target = calcTarget(config, aPresets, aLaneData, getRegionalFroFfe(region, DEFAULT_EMPTIES_CONFIG[area] || false), DEFAULT_ACTUALS[region]?.volShare || 0, DEFAULT_EMPTIES_CONFIG[area] || false, DEFAULT_EMPTIES_SHARE[region]);
 
