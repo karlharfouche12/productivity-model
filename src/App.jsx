@@ -377,8 +377,8 @@ const DEFAULT_AREA_ACTUALS = {
   SWE: { ftes: 129, scFFE: 25614, mcFFE: 14802, empties: 6326.18, cx: 14, mcOps: 53, finOps: 3, vm: 3, exclusions: 0 },
   UKI: { ftes: 29, scFFE: 20428, mcFFE: 2401, empties: 5515.56, cx: 0, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   CAC: { ftes: 79, scFFE: 9714, mcFFE: 1958, empties: 0, cx: 7, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
-  ESA: { ftes: 235, scFFE: 27860, mcFFE: 6640, empties: 0, cx: 30, mcOps: 0, finOps: 0, vm: 2, exclusions: 154 },
-  WSA: { ftes: 128, scFFE: 8651, mcFFE: 1208, empties: 0, cx: 10, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
+  ESA: { ftes: 235, scFFE: 27860, mcFFE: 6640, empties: 0, cx: 30, mcOps: 0, finOps: 0, vm: 2, exclusions: 100 },
+  WSA: { ftes: 128, scFFE: 8651, mcFFE: 1208, empties: 0, cx: 10, mcOps: 0, finOps: 0, vm: 0, exclusions: 54 },
   GCA: { ftes: 156, scFFE: 8709, mcFFE: 35000, empties: 0, cx: 40, mcOps: 14, finOps: 0, vm: 2, exclusions: 0 },
   MEK: { ftes: 113, scFFE: 23107, mcFFE: 20067, empties: 10767, cx: 16, mcOps: 46, finOps: 8, vm: 4, exclusions: 0 },
   NEA: { ftes: 24, scFFE: 0, mcFFE: 3605, empties: 1438.11, cx: 0, mcOps: 24, finOps: 0, vm: 1, exclusions: 0 },
@@ -433,8 +433,8 @@ const DEFAULT_NONTMS_AREA_ACTUALS = {
   SWE: { ftes: 33, scFFE: 7534, mcFFE: 3033, empties: 2034.18, cx: 5, mcOps: 4, finOps: 0, vm: 1, exclusions: 0 },
   UKI: { ftes: 29, scFFE: 20428, mcFFE: 2401, empties: 5515.56, cx: 0, mcOps: 0, finOps: 0, vm: 1, exclusions: 0 },
   CAC: { ftes: 16, scFFE: 484, mcFFE: 868, empties: 0, cx: 3, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
-  ESA: { ftes: 214, scFFE: 25979, mcFFE: 3294, empties: 0, cx: 26, mcOps: 0, finOps: 0, vm: 0, exclusions: 154 },
-  WSA: { ftes: 128, scFFE: 8651, mcFFE: 1208, empties: 0, cx: 10, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
+  ESA: { ftes: 214, scFFE: 25979, mcFFE: 3294, empties: 0, cx: 26, mcOps: 0, finOps: 0, vm: 0, exclusions: 100 },
+  WSA: { ftes: 128, scFFE: 8651, mcFFE: 1208, empties: 0, cx: 10, mcOps: 0, finOps: 0, vm: 0, exclusions: 54 },
   GCA: { ftes: 156, scFFE: 8709, mcFFE: 35000, empties: 0, cx: 40, mcOps: 14, finOps: 0, vm: 2, exclusions: 0 },
   MEK: { ftes: 0, scFFE: 0, mcFFE: 0, empties: 0, cx: 0, mcOps: 0, finOps: 0, vm: 0, exclusions: 0 },
   NEA: { ftes: 24, scFFE: 0, mcFFE: 3605, empties: 1438.11, cx: 0, mcOps: 24, finOps: 0, vm: 1, exclusions: 0 },
@@ -2084,16 +2084,32 @@ export default function App() {
         const stored = await storage.get("productivity-model-state");
         if (stored && stored.value) {
           const state = JSON.parse(stored.value);
-          if (state.config) setConfig({ ...DEFAULT_CONFIG, ...state.config });
+          if (state.config) {
+            // Merge with defaults, then ensure L3 fields are consistent with totals
+            const merged = { ...DEFAULT_CONFIG, ...state.config };
+            // If L3 fields were missing in stored config, recalc totals from defaults
+            if (state.config.l3_receiveBooking == null) {
+              merged.l3_receiveBooking = DEFAULT_CONFIG.l3_receiveBooking;
+              merged.l3_planTransport = DEFAULT_CONFIG.l3_planTransport;
+              merged.l3_manageAmendments = DEFAULT_CONFIG.l3_manageAmendments;
+              merged.l3_identifyEvents = DEFAULT_CONFIG.l3_identifyEvents;
+              merged.l3_manageCompletion = DEFAULT_CONFIG.l3_manageCompletion;
+              merged.l3_manageJobClosure = DEFAULT_CONFIG.l3_manageJobClosure;
+              merged.planningMinutesPerOrder = merged.l3_receiveBooking + merged.l3_planTransport + merged.l3_manageAmendments;
+              merged.executionMinutesPerOrder = merged.l3_identifyEvents + merged.l3_manageCompletion + merged.l3_manageJobClosure;
+            }
+            setConfig(merged);
+          }
           if (state.areaPresets) setAreaPresets(state.areaPresets);
           if (state.areaLaneData) setAreaLaneData(state.areaLaneData);
-          if (state.actuals) setActuals(state.actuals);
-          if (state.areaActuals) setAreaActuals(state.areaActuals);
-          if (state.tmsAreaActuals) setTmsAreaActuals(state.tmsAreaActuals);
-          if (state.nonTmsAreaActuals) setNonTmsAreaActuals(state.nonTmsAreaActuals);
+          if (state.actuals) setActuals({ ...DEFAULT_ACTUALS, ...state.actuals });
+          // Merge area actuals with defaults so new areas (USA/CAN/MEX etc) are always present
+          if (state.areaActuals) setAreaActuals({ ...DEFAULT_AREA_ACTUALS, ...state.areaActuals });
+          if (state.tmsAreaActuals) setTmsAreaActuals({ ...DEFAULT_TMS_AREA_ACTUALS, ...state.tmsAreaActuals });
+          if (state.nonTmsAreaActuals) setNonTmsAreaActuals({ ...DEFAULT_NONTMS_AREA_ACTUALS, ...state.nonTmsAreaActuals });
           // FRO/FFE constants
-          if (state.emptiesShare) setEmptiesShare(state.emptiesShare);
-          if (state.emptiesConfig) setEmptiesConfig(state.emptiesConfig);
+          if (state.emptiesShare) setEmptiesShare({ ...DEFAULT_EMPTIES_SHARE, ...state.emptiesShare });
+          if (state.emptiesConfig) setEmptiesConfig({ ...DEFAULT_EMPTIES_CONFIG, ...state.emptiesConfig });
           if (state.metadata) setMetadata(state.metadata);
         }
       } catch (e) {
