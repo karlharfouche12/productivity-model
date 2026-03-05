@@ -1019,11 +1019,11 @@ function TargetCalculator({ config, setConfig, areaPresets, areaLaneData }) {
                     <div className="text-xs text-slate-600 mt-0.5">{tooltip}</div>
                   </div>
                   <NumberInput
-                    value={config[key]}
+                    value={config[key] ?? 0}
                     onChange={(v) => {
                       setConfig((p) => {
                         const updated = { ...p, [key]: v };
-                        updated.planningMinutesPerOrder = updated.l3_receiveBooking + updated.l3_planTransport + updated.l3_manageAmendments;
+                        updated.planningMinutesPerOrder = (updated.l3_receiveBooking || 0) + (updated.l3_planTransport || 0) + (updated.l3_manageAmendments || 0);
                         return updated;
                       });
                     }}
@@ -1055,11 +1055,11 @@ function TargetCalculator({ config, setConfig, areaPresets, areaLaneData }) {
                     <div className="text-xs text-slate-600 mt-0.5">{tooltip}</div>
                   </div>
                   <NumberInput
-                    value={config[key]}
+                    value={config[key] ?? 0}
                     onChange={(v) => {
                       setConfig((p) => {
                         const updated = { ...p, [key]: v };
-                        updated.executionMinutesPerOrder = updated.l3_identifyEvents + updated.l3_manageCompletion + updated.l3_manageJobClosure;
+                        updated.executionMinutesPerOrder = (updated.l3_identifyEvents || 0) + (updated.l3_manageCompletion || 0) + (updated.l3_manageJobClosure || 0);
                         return updated;
                       });
                     }}
@@ -2084,7 +2084,7 @@ export default function App() {
         const stored = await storage.get("productivity-model-state");
         if (stored && stored.value) {
           const state = JSON.parse(stored.value);
-          if (state.config) setConfig(state.config);
+          if (state.config) setConfig({ ...DEFAULT_CONFIG, ...state.config });
           if (state.areaPresets) setAreaPresets(state.areaPresets);
           if (state.areaLaneData) setAreaLaneData(state.areaLaneData);
           if (state.actuals) setActuals(state.actuals);
